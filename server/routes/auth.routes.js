@@ -12,6 +12,7 @@ router.get("/profile", protect, (req, res) => {
     res.json({
         success: true,
         message: "Protected Route",
+        user:req.user,
     });
 });
 
