@@ -1,0 +1,16 @@
+server/node_modules/
+
+# Node modules in all folders
+**/node_modules/
+node_modules/
+server/node_modules/
+client/node_modules/
+
+# Environment files
+*.env
+*.env.local
+
+# Build outputs
+dist/
+build/
+
