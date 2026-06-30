@@ -1,5 +1,6 @@
 import Repository from "../models/repository.model.js";
 import validateGithubUrl from "../utils/validateGithubUrl.js";
+import { getRepository } from "../services/github.service.js";
 export const importRepository = async (req, res) => {
   try {
     const { name, githubUrl } = req.body;
@@ -11,23 +12,36 @@ export const importRepository = async (req, res) => {
       });
     }
     if (!validateGithubUrl(githubUrl)) {
-  return res.status(400).json({
+      return res.status(400).json({
+        success: false,
+        message: "Invalid GitHub repository URL",
+      });
+    }
+    const parts = githubUrl.split("/");
+
+    const owner = parts[3];
+    const repo = parts[4];
+
+    const repositoryData = await getRepository(owner, repo);
+    console.log(repositoryData)
+    if(!repositoryData)
+    {
+      return res.status(404).json({
     success: false,
-    message: "Invalid GitHub repository URL",
+    message: "Repository not found on GitHub",
   });
-}
+    }
+    const repository = await Repository.create({
+      name,
+      githubUrl,
+      owner: req.user._id,
+    });
 
-  const repository = await Repository.create({
-  name,
-  githubUrl,
-  owner: req.user._id,
-});
-
-return res.status(201).json({
-  success: true,
-  message: "Repository imported successfully",
-  repository,
-});
+    return res.status(201).json({
+      success: true,
+      message: "Repository imported successfully",
+      repository,
+    });
 
   } catch (error) {
     console.error(error);
