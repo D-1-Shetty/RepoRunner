@@ -32,3 +32,24 @@ return res.status(201).json({
     });
   }
 };
+
+export const getRepositories = async (req, res) => {
+  try {
+    const repositories = await Repository.find({
+      owner: req.user._id,
+    }).select("name githubUrl createdAt");
+
+    return res.status(200).json({
+      success: true,
+      count: repositories.length,
+      repositories,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
