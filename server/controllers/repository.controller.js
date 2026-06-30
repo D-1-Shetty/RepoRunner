@@ -1,5 +1,5 @@
 import Repository from "../models/repository.model.js";
-
+import validateGithubUrl from "../utils/validateGithubUrl.js";
 export const importRepository = async (req, res) => {
   try {
     const { name, githubUrl } = req.body;
@@ -10,6 +10,12 @@ export const importRepository = async (req, res) => {
         message: "Repository name and GitHub URL are required",
       });
     }
+    if (!validateGithubUrl(githubUrl)) {
+  return res.status(400).json({
+    success: false,
+    message: "Invalid GitHub repository URL",
+  });
+}
 
   const repository = await Repository.create({
   name,
