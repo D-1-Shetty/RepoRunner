@@ -11,10 +11,17 @@ export const importRepository = async (req, res) => {
       });
     }
 
-    res.status(201).json({
-      success: true,
-      message: "Validation passed",
-    });
+  const repository = await Repository.create({
+  name,
+  githubUrl,
+  owner: req.user._id,
+});
+
+return res.status(201).json({
+  success: true,
+  message: "Repository imported successfully",
+  repository,
+});
 
   } catch (error) {
     console.error(error);
