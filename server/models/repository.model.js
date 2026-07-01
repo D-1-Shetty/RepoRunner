@@ -19,7 +19,20 @@ const repositorySchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    status: {
+  type: String,
+  enum: [
+    "IMPORTED",
+    "CLONING",
+    "CLONED",
+    "BUILDING",
+    "RUNNING",
+    "FAILED",
+  ],
+  default: "IMPORTED",
+},
   },
+  
   {
     timestamps: true,
   }

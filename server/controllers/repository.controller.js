@@ -1,6 +1,7 @@
 import Repository from "../models/repository.model.js";
 import validateGithubUrl from "../utils/validateGithubUrl.js";
 import { getRepository } from "../services/github.service.js";
+import extractGithubInfo from "../utils/extractGithubInfo.js";
 export const importRepository = async (req, res) => {
   try {
     const { name, githubUrl } = req.body;
@@ -17,10 +18,7 @@ export const importRepository = async (req, res) => {
         message: "Invalid GitHub repository URL",
       });
     }
-    const parts = githubUrl.split("/");
-
-    const owner = parts[3];
-    const repo = parts[4];
+    const { owner, repo } = extractGithubInfo(githubUrl);
 
     const repositoryData = await getRepository(owner, repo);
     console.log(repositoryData)
