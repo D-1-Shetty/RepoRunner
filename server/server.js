@@ -20,7 +20,7 @@ app.use(morgan("dev"));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/repositories", repositoryRoutes);
-app.use("/api/repositories",repositoryRoutes)
+
 // Health Check
 app.get("/", (req, res) => {
   res.status(200).json({

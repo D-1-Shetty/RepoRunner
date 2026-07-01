@@ -71,3 +71,31 @@ export const getRepositories = async (req, res) => {
     });
   }
 };
+
+export const cloneRepository = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const repository = await Repository.findById(id);
+
+    if (!repository) {
+      return res.status(404).json({
+        success: false,
+        message: "Repository not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Repository ready for cloning",
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
