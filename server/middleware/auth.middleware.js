@@ -12,8 +12,10 @@ export const protect = async (req, res, next) => {
         message: "Invalid authorization format",
       });
     }
-    
+
+
     const token = authHeader.split(" ")[1];
+    console.log(token)
     if (!token) {
       return res.status(401).json({
         success: false,
@@ -32,6 +34,7 @@ export const protect = async (req, res, next) => {
       });
     }
 
+    console.log(user);
     req.user = user;
 
     next();

@@ -42,6 +42,34 @@ const repositorySchema = new mongoose.Schema(
       ],
       default: "IMPORTED",
     },
+    analysis: {
+  framework: {
+    type: String,
+  },
+  projectType:
+  {
+    type:String,
+  },
+  
+  
+  packageManager: {
+    type: String,
+  },
+  commands: {
+  devCommand: {
+    type: String,
+    default: null,
+  },
+  buildCommand: {
+    type: String,
+    default: null,
+  },
+  startCommand: {
+    type: String,
+    default: null,
+  },
+},
+},
 
     localPath: {
       type: String,

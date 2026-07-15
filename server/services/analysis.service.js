@@ -23,11 +23,15 @@ export const analyzeProject = async (repositoryPath) => {
       await fs.readFile(packageJsonPath, "utf-8")
     );
 
-    return {
-      packageJson,
-      framework: detectFramework(packageJson),
-      commands: detectCommands(packageJson),
-    };
+   const framework = detectFramework(packageJson);
+
+return {
+  packageJson,
+  framework,
+  projectType: detectProjectType(framework),
+  packageManager: await detectPackageManager(repositoryPath),
+  commands: detectCommands(packageJson),
+};
   } catch {
     return null;
   }
@@ -45,4 +49,65 @@ const detectCommands = (packageJson) => {
       ? "npm run preview"
       : null,
   };
+};
+
+const detectPackageManager = async (repositoryPath) => {
+  const packageManagers = [
+    {
+      file: "package-lock.json",
+      manager: "npm",
+    },
+    {
+      file: "yarn.lock",
+      manager: "yarn",
+    },
+    {
+      file: "pnpm-lock.yaml",
+      manager: "pnpm",
+    },
+  ];
+
+  for (const packageManager of packageManagers) {
+    try {
+      await fs.access(path.join(repositoryPath, packageManager.file));
+      return packageManager.manager;
+    } catch {
+      continue;
+    }
+  }
+
+  return "npm";
+};
+const detectPort = (framework) => {
+  switch (framework) {
+    case "Vite":
+      return 5173;
+
+    case "Next.js":
+      return 3000;
+
+    case "React":
+      return 3000;
+
+    case "Express":
+      return 3000;
+
+    default:
+      return null;
+  }
+};
+
+const detectProjectType = (framework) => {
+  switch (framework) {
+    case "React":
+    case "Vite":
+    case "Next.js":
+      return "frontend";
+
+    case "Express":
+      return "backend";
+
+    default:
+      return "unknown";
+  }
 };

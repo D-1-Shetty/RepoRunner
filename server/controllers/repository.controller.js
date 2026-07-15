@@ -102,14 +102,23 @@ export const cloneRepository = async (req, res) => {
     );
 
     repository.localPath = destination;
-
+    let analysis;
     try {
       await cloneRepositoryService(
         repository.cloneUrl,
         repository.localPath
       );
 
-      const analysis = await analyzeProject(repository.localPath);
+      analysis = await analyzeProject(repository.localPath);
+      repository.analysis = {
+        framework: analysis.framework,
+        packageManager: analysis.packageManager,
+        commands: analysis.commands,
+      };
+
+      repository.status = "CLONED";
+
+      await repository.save();
       repository.status = "CLONED";
       await repository.save();
 
@@ -123,6 +132,12 @@ export const cloneRepository = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Repository ready for cloning",
+      analysis: {
+        framework: analysis.framework,
+        projectType:analysis.projectType,
+        packageManager: analysis.packageManager,
+        commands: analysis.commands,
+      }
     });
 
   } catch (error) {
