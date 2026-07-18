@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import path from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
-
+import net from "net";
 const execAsync = promisify(exec);
 export const generateDockerfile = (analysis) => {
   switch (analysis.framework) {
@@ -70,10 +70,35 @@ export const buildDockerImage = async (repositoryPath, imageTag) => {
 };
 
 export const runContainer = async (
-    imageTag,
+  imageTag,
+  containerName,
+  hostPort,
+  containerPort
+) => {
+  const command = `docker run -d -p ${hostPort}:${containerPort} --name ${containerName} ${imageTag}`;
+
+  const { stdout } = await execAsync(command);
+
+  return {
+    containerId: stdout.trim(),
     containerName,
     hostPort,
-    containerPort
-) => {
+    containerPort,
+  };
+};
 
+export const getAvailablePort = (startPort = 40000) => {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+
+    server.listen(startPort, () => {
+      const { port } = server.address();
+
+      server.close(() => resolve(port));
+    });
+
+    server.on("error", () => {
+      resolve(getAvailablePort(startPort + 1));
+    });
+  });
 };

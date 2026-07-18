@@ -13,6 +13,8 @@ import {
   generateDockerfile,
   writeDockerfile,
   buildDockerImage,
+  runContainer,
+  getAvailablePort
 } from "../services/docker.service.js";
 
 import path from "path";
@@ -154,8 +156,18 @@ export const cloneRepository = async (req, res) => {
         repository.localPath,
         `reporunner-${repository._id}`
       );
+      const hostPort = await getAvailablePort();
+      const containerInfo = await runContainer(
+    dockerInfo.imageTag,
+    `reporunner-${repository._id}`,
+    hostPort,
+    analysis.containerPort
+);
 
-      repository.docker = dockerInfo;
+      repository.docker = {
+  ...dockerInfo,
+  ...containerInfo,
+};
       repository.status = "BUILT";
 
       await repository.save();
@@ -187,3 +199,11 @@ export const cloneRepository = async (req, res) => {
     });
   }
 };
+
+export const stopRepository = async (req,res)=>{
+
+    await stopContainer(
+        repository.docker.containerId
+    );
+
+}

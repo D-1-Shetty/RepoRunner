@@ -51,6 +51,9 @@ const repositorySchema = new mongoose.Schema(
       {
         type: String,
       },
+      containerPort: {
+        type: Number,
+      },
 
 
       packageManager: {
@@ -76,16 +79,16 @@ const repositorySchema = new mongoose.Schema(
       type: String,
       default: null,
     },
-    docker:{
-    imageId,
-    imageTag,
-    containerId,
-    containerName,
-    hostPort,
-    containerPort,
-}
+    docker: {
+      imageId: String,
+      imageTag: String,
+      containerId: String,
+      containerName: String,
+      hostPort: Number,
+      containerPort: Number,
+    },
   },
-  
+
   {
     timestamps: true,
   }

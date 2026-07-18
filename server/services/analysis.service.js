@@ -24,13 +24,14 @@ export const analyzeProject = async (repositoryPath) => {
     );
 
    const framework = detectFramework(packageJson);
+   const containerPort = detectContainerPort(framework);
 
 return {
-  packageJson,
   framework,
   projectType: detectProjectType(framework),
   packageManager: await detectPackageManager(repositoryPath),
   commands: detectCommands(packageJson),
+  containerPort,
 };
   } catch {
     return null;
