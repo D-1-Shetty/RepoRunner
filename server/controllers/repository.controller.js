@@ -6,6 +6,7 @@ import extractGithubInfo from "../utils/extractGithubInfo.js";
 import path from "path";
 import { REPOSITORY_STORAGE_PATH } from "../config/path.js";
 import { cloneRepository as cloneRepositoryService } from "../services/github.service.js";
+import { generateDockerfile,writeDockerfile } from "../services/docker.service.js";
 export const importRepository = async (req, res) => {
   try {
     const { name, githubUrl } = req.body;
@@ -119,8 +120,16 @@ export const cloneRepository = async (req, res) => {
       repository.status = "CLONED";
 
       await repository.save();
-      repository.status = "CLONED";
-      await repository.save();
+      const dockerfile = generateDockerfile(repository.analysis);
+
+const dockerfilePath = await writeDockerfile(
+  repository.localPath,
+  dockerfile
+);
+
+console.log(dockerfilePath);
+
+console.log(dockerfile);
 
     }
     catch (error) {
