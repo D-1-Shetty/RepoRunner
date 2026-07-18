@@ -1,5 +1,5 @@
 server/node_modules/
-
+server/storage/
 # Node modules in all folders
 **/node_modules/
 node_modules/

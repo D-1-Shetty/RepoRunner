@@ -1,6 +1,10 @@
 
 import fs from "fs/promises";
 import path from "path";
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
 export const generateDockerfile = (analysis) => {
   switch (analysis.framework) {
     case "Vite":
@@ -17,7 +21,7 @@ COPY . .
 
 EXPOSE 5173
 
-CMD ["npm","run","dev"]`;
+CMD ["npm","run","dev","--","--host"]`;
 
     case "Express":
       return `FROM node:22-alpine
@@ -48,4 +52,28 @@ export const writeDockerfile = async (
   await fs.writeFile(dockerfilePath, dockerfileContent);
 
   return dockerfilePath;
+};
+
+export const buildDockerImage = async (repositoryPath, imageTag) => {
+  const buildCommand = `docker build -t ${imageTag} ${repositoryPath}`;
+
+  await execAsync(buildCommand);
+
+  const { stdout } = await execAsync(
+    `docker image inspect ${imageTag} --format "{{.Id}}"`
+  );
+
+  return {
+    imageId: stdout.trim(),
+    imageTag,
+  };
+};
+
+export const runContainer = async (
+    imageTag,
+    containerName,
+    hostPort,
+    containerPort
+) => {
+
 };
