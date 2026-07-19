@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <title>RepoRunner Socket Test</title>
+</head>
+<body>
+
+<h2>Socket.IO Test</h2>
+
+<script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+
+<script>
+    const socket = io("http://localhost:5000");
+
+    socket.on("connect", () => {
+        console.log("Connected:", socket.id);
+    });
+
+    socket.emit(
+    "join-deployment",
+    "6a5c7175117e3a92212fc31c"
+);
+
+socket.on("deployment-log", (log) => {
+    console.log(log);
+});
+</script>
+
+</body>
+</html>

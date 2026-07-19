@@ -14,7 +14,7 @@ import {
 } from "./docker.service.js";
 
 import Deployment from "../models/deployment.model.js";
-
+import { getSocketIO } from "./socket.service.js";
 export const cloneRepositoryWorkflow = async (repository) => {
   let deployment;
   try {
@@ -166,9 +166,22 @@ const addDeploymentLog = async (
   deployment,
   message
 ) => {
-  deployment.logs.push({
+  const log = {
     message,
-  });
+    createdAt: new Date(),
+  };
+
+  deployment.logs.push(log);
 
   await deployment.save();
+
+  const io = getSocketIO();
+
+  io.to(`deployment-${deployment._id}`).emit(
+  "deployment-log",
+  {
+    deploymentId: deployment._id,
+    ...log,
+  }
+);
 };
