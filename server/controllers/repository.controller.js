@@ -1,21 +1,11 @@
 import Repository from "../models/repository.model.js";
 import validateGithubUrl from "../utils/validateGithubUrl.js";
 import extractGithubInfo from "../utils/extractGithubInfo.js";
+import { cloneRepositoryWorkflow } from "../services/repository.workflow.js";
+import {getRepository} from "../services/github.service.js";
 
-import {
-  getRepository,
-  cloneRepository as cloneRepositoryService,
-} from "../services/github.service.js";
 
-import { analyzeProject } from "../services/analysis.service.js";
 
-import {
-  generateDockerfile,
-  writeDockerfile,
-  buildDockerImage,
-  runContainer,
-  getAvailablePort
-} from "../services/docker.service.js";
 
 import path from "path";
 import { REPOSITORY_STORAGE_PATH } from "../config/path.js";
@@ -109,85 +99,18 @@ export const cloneRepository = async (req, res) => {
       });
     }
 
-    const destination = path.join(
+    repository.localPath = path.join(
       REPOSITORY_STORAGE_PATH,
       repository._id.toString()
     );
 
-    repository.status = "CLONING";
-    repository.localPath = destination;
-
-    // Save immediately so DB reflects current state
-    await repository.save();
-
-    let analysis;
-
-    try {
-      // Clone repository
-      await cloneRepositoryService(
-        repository.cloneUrl,
-        repository.localPath
-      );
-
-      // Analyze project
-      analysis = await analyzeProject(repository.localPath);
-
-      // Save analysis
-      repository.analysis = analysis;
-
-      // Clone completed
-      repository.status = "CLONED";
-      await repository.save();
-
-      // Generate Dockerfile
-      const dockerfile = generateDockerfile(repository.analysis);
-
-      // Write Dockerfile
-      await writeDockerfile(
-        repository.localPath,
-        dockerfile
-      );
-
-      // Build Docker Image
-      repository.status = "BUILDING";
-      await repository.save();
-
-      const dockerInfo = await buildDockerImage(
-        repository.localPath,
-        `reporunner-${repository._id}`
-      );
-      const hostPort = await getAvailablePort();
-      const containerInfo = await runContainer(
-    dockerInfo.imageTag,
-    `reporunner-${repository._id}`,
-    hostPort,
-    analysis.containerPort
-);
-
-      repository.docker = {
-  ...dockerInfo,
-  ...containerInfo,
-};
-      repository.status = "BUILT";
-
-      await repository.save();
-
-    } catch (error) {
-      repository.status = "FAILED";
-      await repository.save();
-
-      throw error;
-    }
+    const deployedRepository =
+      await cloneRepositoryWorkflow(repository);
 
     return res.status(200).json({
       success: true,
-      message: "Repository cloned and Docker image built successfully",
-      repository: {
-        id: repository._id,
-        name: repository.name,
-        status: repository.status,
-      },
-      analysis: repository.analysis,
+      message: "Repository deployed successfully",
+      repository: deployedRepository,
     });
 
   } catch (error) {

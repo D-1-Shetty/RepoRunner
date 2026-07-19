@@ -102,3 +102,48 @@ export const getAvailablePort = (startPort = 40000) => {
     });
   });
 };
+
+export const stopContainer = async (containerId) => {
+  const command = `docker stop ${containerId}`;
+
+  await execAsync(command);
+
+  return true;
+};
+
+export const removeContainer = async (containerId) => {
+  const command = `docker rm ${containerId}`;
+
+  await execAsync(command);
+
+  return true;
+};
+
+export const removeImage = async (imageTag) => {
+  const command = `docker rmi ${imageTag}`;
+
+  await execAsync(command);
+
+  return true;
+};
+
+export const cleanupDeployment = async (docker) => {
+  if (!docker) return;
+
+  try {
+    if (docker.containerId) {
+      await stopContainer(docker.containerId);
+      await removeContainer(docker.containerId);
+    }
+  } catch (error) {
+    console.warn("Container cleanup skipped:", error.message);
+  }
+
+  try {
+    if (docker.imageTag) {
+      await removeImage(docker.imageTag);
+    }
+  } catch (error) {
+    console.warn("Image cleanup skipped:", error.message);
+  }
+};

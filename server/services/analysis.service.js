@@ -33,9 +33,10 @@ return {
   commands: detectCommands(packageJson),
   containerPort,
 };
-  } catch {
-    return null;
-  }
+  } catch (error) {
+  console.error("Analysis Error:", error);
+  return null;
+}
 };
 
 const detectCommands = (packageJson) => {
@@ -79,7 +80,7 @@ const detectPackageManager = async (repositoryPath) => {
 
   return "npm";
 };
-const detectPort = (framework) => {
+const detectContainerPort = (framework) => {
   switch (framework) {
     case "Vite":
       return 5173;
