@@ -39,6 +39,7 @@ const repositorySchema = new mongoose.Schema(
         "BUILDING",
         "BUILT",
         "RUNNING",
+        "STOPPED",
         "FAILED",
       ],
       default: "IMPORTED",
@@ -87,7 +88,63 @@ const repositorySchema = new mongoose.Schema(
       hostPort: Number,
       containerPort: Number,
     },
-    
+
+    // One entry per application detected by analyzeProject(), each with its
+    // own Docker image/container. Populated for both single- and
+    // multi-application repositories.
+    applications: [
+      {
+        name: String,
+        framework: String,
+        projectType: String,
+        workingDirectory: String,
+        packageManager: String,
+        containerPort: Number,
+        commands: {
+          installCommand: {
+            type: String,
+            default: null,
+          },
+          buildCommand: {
+            type: String,
+            default: null,
+          },
+          startCommand: {
+            type: String,
+            default: null,
+          },
+        },
+        docker: {
+          imageId: String,
+          imageTag: String,
+          containerId: String,
+          containerName: String,
+          hostPort: Number,
+          containerPort: Number,
+        },
+        status: {
+          type: String,
+          enum: ["PENDING", "RUNNING", "FAILED", "STOPPED"],
+          default: "PENDING",
+        },
+      },
+    ],
+
+    // Persistent per-repository deployment configuration. `env[].value` holds
+    // ONLY an encrypted payload (see server/utils/secretbox.js) - never a
+    // plaintext value.
+    deploymentConfig: {
+      env: [
+        {
+          key: String,
+          value: String,
+          secret: Boolean,
+          updatedAt: Date,
+        },
+      ],
+      updatedAt: Date,
+    },
+
   },
 
   {

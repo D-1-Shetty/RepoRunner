@@ -1,46 +1,69 @@
 
 import fs from "fs/promises";
 import path from "path";
+import os from "os";
+import crypto from "crypto";
 import { exec } from "child_process";
 import { promisify } from "util";
 import net from "net";
 const execAsync = promisify(exec);
 export const generateDockerfile = (analysis) => {
-  switch (analysis.framework) {
-    case "Vite":
-    case "React":
-      return `FROM node:22-alpine
+  const {
+    commands,
+    containerPort,
+    projectType,
+    workingDirectory,
+  } = analysis;
 
-WORKDIR /app
+  const dockerfile = [];
 
-COPY package*.json ./
+  dockerfile.push("FROM node:22-alpine");
+  dockerfile.push("");
+  dockerfile.push("WORKDIR /app");
+  dockerfile.push("");
 
-RUN npm install
-
-COPY . .
-
-EXPOSE 5173
-
-CMD ["npm","run","dev","--","--host"]`;
-
-    case "Express":
-      return `FROM node:22-alpine
-
-WORKDIR /app
-
-COPY package*.json ./
-
-RUN npm install
-
-COPY . .
-
-EXPOSE 3000
-
-CMD ["npm","start"]`;
-
-    default:
-      throw new Error("Unsupported framework");
+  if (workingDirectory) {
+    dockerfile.push(
+      `COPY ${workingDirectory}/package*.json ./`
+    );
+  } else {
+    dockerfile.push("COPY package*.json ./");
   }
+
+  dockerfile.push("");
+
+  if (commands.installCommand) {
+    dockerfile.push(`RUN ${commands.installCommand}`);
+    dockerfile.push("");
+  }
+
+  if (workingDirectory) {
+    dockerfile.push(`COPY ${workingDirectory}/ .`);
+  } else {
+    dockerfile.push("COPY . .");
+  }
+
+  dockerfile.push("");
+
+  if (
+    projectType === "frontend" &&
+    commands.buildCommand
+  ) {
+    dockerfile.push(`RUN ${commands.buildCommand}`);
+    dockerfile.push("");
+  }
+
+  dockerfile.push(`EXPOSE ${containerPort}`);
+  dockerfile.push("");
+
+  const cmd = commands.startCommand
+    .split(" ")
+    .map((arg) => `"${arg}"`)
+    .join(",");
+
+  dockerfile.push(`CMD [${cmd}]`);
+
+  return dockerfile.join("\n");
 };
 
 export const writeDockerfile = async (
@@ -69,22 +92,75 @@ export const buildDockerImage = async (repositoryPath, imageTag) => {
   };
 };
 
+// Writes the given environment variables to a private, single-use file for
+// `docker run --env-file`. Secret values therefore never appear on the
+// command line (no shell history / `ps` exposure) and never go through a
+// shell, so no escaping/injection concerns. The caller deletes the file
+// once the container has been created.
+const writeEnvFile = async (env) => {
+  const entries = Object.entries(env ?? {}).filter(
+    ([key, value]) =>
+      key && value !== undefined && value !== null
+  );
+
+  if (entries.length === 0) return null;
+
+  const filePath = path.join(
+    os.tmpdir(),
+    `reporunner-env-${crypto.randomBytes(8).toString("hex")}.env`
+  );
+
+  const contents = entries
+    .map(([key, value]) => `${key}=${value}`)
+    .join("\n");
+
+  await fs.writeFile(filePath, contents, { mode: 0o600 });
+
+  return filePath;
+};
+
 export const runContainer = async (
   imageTag,
   containerName,
   hostPort,
-  containerPort
+  containerPort,
+  env = {}
 ) => {
-  const command = `docker run -d -p ${hostPort}:${containerPort} --name ${containerName} ${imageTag}`;
+  const envFilePath = await writeEnvFile(env);
 
-  const { stdout } = await execAsync(command);
+  try {
+    const args = [
+      "run",
+      "-d",
+      "-p",
+      `${hostPort}:${containerPort}`,
+      "--name",
+      containerName,
+      // Lets a deployed container reach services on the RepoRunner host
+      // (e.g. a local MongoDB) via `host.docker.internal`. `host-gateway`
+      // resolves to the host on Linux, matching Docker Desktop behaviour.
+      "--add-host=host.docker.internal:host-gateway",
+    ];
 
-  return {
-    containerId: stdout.trim(),
-    containerName,
-    hostPort,
-    containerPort,
-  };
+    if (envFilePath) {
+      args.push("--env-file", envFilePath);
+    }
+
+    args.push(imageTag);
+
+    const { stdout } = await execAsync(`docker ${args.join(" ")}`);
+
+    return {
+      containerId: stdout.trim(),
+      containerName,
+      hostPort,
+      containerPort,
+    };
+  } finally {
+    if (envFilePath) {
+      await fs.rm(envFilePath, { force: true });
+    }
+  }
 };
 
 export const getAvailablePort = (startPort = 40000) => {
@@ -111,12 +187,50 @@ export const stopContainer = async (containerId) => {
   return true;
 };
 
+// Restarts an existing container in place - same container, image, port
+// mapping and env. Works whether the container is currently running or
+// stopped. Does not touch the image.
+export const restartContainer = async (containerId) => {
+  const command = `docker restart ${containerId}`;
+
+  await execAsync(command);
+
+  return true;
+};
+
 export const removeContainer = async (containerId) => {
   const command = `docker rm ${containerId}`;
 
   await execAsync(command);
 
   return true;
+};
+
+// Read-only: returns { [containerName]: state } for every RepoRunner-managed
+// container, running or not. `state` is Docker's container state string
+// ("running", "restarting", "exited", "created", "paused", "dead", ...).
+// Never starts, stops, builds or removes anything.
+export const listContainerStates = async () => {
+  const { stdout } = await execAsync(
+    `docker ps -a --filter "name=reporunner-" --format "{{.Names}}|{{.State}}"`
+  );
+
+  const states = {};
+
+  for (const line of stdout.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const separatorIndex = trimmed.indexOf("|");
+    if (separatorIndex === -1) continue;
+
+    const name = trimmed.slice(0, separatorIndex);
+    const state = trimmed.slice(separatorIndex + 1);
+
+    if (name) states[name] = state;
+  }
+
+  return states;
 };
 
 export const removeImage = async (imageTag) => {
@@ -127,23 +241,44 @@ export const removeImage = async (imageTag) => {
   return true;
 };
 
-export const cleanupDeployment = async (docker) => {
-  if (!docker) return;
-
+// Read-only: true if the given image tag/ID still exists locally.
+export const imageExists = async (imageRef) => {
   try {
-    if (docker.containerId) {
-      await stopContainer(docker.containerId);
-      await removeContainer(docker.containerId);
-    }
-  } catch (error) {
-    console.warn("Container cleanup skipped:", error.message);
+    await execAsync(`docker image inspect ${imageRef}`);
+    return true;
+  } catch {
+    return false;
   }
+};
 
-  try {
-    if (docker.imageTag) {
-      await removeImage(docker.imageTag);
+// Accepts either a single docker resource ({ containerId, imageTag }) or an
+// array of them, so it can clean up one application or every application of
+// a multi-application deployment.
+export const cleanupDeployment = async (dockerResources) => {
+  if (!dockerResources) return;
+
+  const resources = Array.isArray(dockerResources)
+    ? dockerResources
+    : [dockerResources];
+
+  for (const docker of resources) {
+    if (!docker) continue;
+
+    try {
+      if (docker.containerId) {
+        await stopContainer(docker.containerId);
+        await removeContainer(docker.containerId);
+      }
+    } catch (error) {
+      console.warn("Container cleanup skipped:", error.message);
     }
-  } catch (error) {
-    console.warn("Image cleanup skipped:", error.message);
+
+    try {
+      if (docker.imageTag) {
+        await removeImage(docker.imageTag);
+      }
+    } catch (error) {
+      console.warn("Image cleanup skipped:", error.message);
+    }
   }
 };

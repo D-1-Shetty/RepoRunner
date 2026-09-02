@@ -14,8 +14,8 @@ const links = [
     path: "/deployments",
   },
   {
-    name: "Running Apps",
-    path: "/running-apps",
+    name: "Running Applications",
+    path: "/running-applications",
   },
 ];
 
@@ -43,6 +43,7 @@ export default function Sidebar() {
           >
             {link.name}
           </NavLink>
+
         ))}
 
       </nav>
